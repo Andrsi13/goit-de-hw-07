@@ -1,0 +1,41 @@
+services:
+
+  
+  mysql:
+    image: mysql:8.0
+    container_name: hw07_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: andrii          # твоя «схема», як oleksiy у прикладі
+      MYSQL_USER: airflow_user
+      MYSQL_PASSWORD: airflow_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data:/var/lib/mysql-files               # CSV для LOAD DATA INFILE
+      - ./mysql-init:/docker-entrypoint-initdb.d  # SQL, що виконається при першому старті
+      - mysql_data:/var/lib/mysql                 # самі дані бази (зберігаються між перезапусками)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-prootpass"]
+      interval: 5s
+      retries: 20
+
+  
+  airflow:
+    image: apache/airflow:2.10.5
+    container_name: hw07_airflow
+    command: standalone
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW_CONN_GOIT_MYSQL_DB: "mysql://airflow_user:airflow_pass@mysql:3306/andrii"
+      AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "30"
+    volumes:
+      - ./dags:/opt/airflow/dags
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
